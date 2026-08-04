@@ -79,8 +79,8 @@ char *path_portableinator(const char *path)
 
 
 #include "pad.c"
-#include "instset.c"
-#include "insttable.c"
+#include "f8_set.c"
+#include "f8_table.c"
 #include "gfx.c"
 
 
