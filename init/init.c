@@ -236,13 +236,13 @@ void init(const char *argv0)
         {
             gsGlobal->Width = str_to_int(fd[3],640);
             *(volatile u32 *)(GS_WIDTH) = (str_to_int(fd[3], 640));
-            gsGlobal->Height = str_to_int(fd[4],480);
-            *(volatile u32 *)(GS_HEIGHT) = (str_to_int(fd[4], 480));
+            gsGlobal->Height = str_to_int(fd[4],448);
+            *(volatile u32 *)(GS_HEIGHT) = (str_to_int(fd[4], 448));
         }
         else
         {
             gsGlobal->Width = 640;
-            gsGlobal->Height = 480;
+            gsGlobal->Height = 448;
         }
 
         if ( fd[2] && strcmp( fd[2], "PRIMALPHA=DISABLE" ) == 0 )
@@ -261,13 +261,13 @@ void init(const char *argv0)
         gsGlobal->Mode = GS_MODE_PAL;
         gsGlobal->Interlace = GS_INTERLACED;
         gsGlobal->Width = 640;
-        gsGlobal->Height = 480;
+        gsGlobal->Height = 448;
         gsGlobal->PrimAlphaEnable = GS_SETTING_ON;
         *(volatile u8 *)(PAL_NTSC)    = 0;
         *(volatile u8 *)(INTERLACED)  = 1;
         *(volatile u8 *)(PRIM_ALPHA)  = 1;
         *(volatile u32 *)(GS_WIDTH)   = 640;
-        *(volatile u32 *)(GS_HEIGHT)  = 480;
+        *(volatile u32 *)(GS_HEIGHT)  = 448;
 
     }
 

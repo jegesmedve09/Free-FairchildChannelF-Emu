@@ -4,29 +4,44 @@
 #define FLAG_O 0x08
 
 void clr_ozcs(void) { cpu.W &= ~(FLAG_O|FLAG_Z|FLAG_C|FLAG_S); }
-void set_sz(u8 n) {
-    if (n == 0) cpu.W |= FLAG_Z;
-    if (~n & 0x80) cpu.W |= FLAG_S;
-}
-// returns result, sets O/C as side effect (matches MAME's do_add)
-u8 do_add(u8 n, u8 m, u8 c) {
-    u16 r = n + m + c;
-    if (r & 0x100) cpu.W |= FLAG_C;
-    if ((n ^ r) & (m ^ r) & 0x80) cpu.W |= FLAG_O;
-    return (u8)r;
+void set_sz(u8 n)
+{
+    if (n == 0)
+    {
+        cpu.W |= FLAG_Z;
+    }
+    if (~n & 0x80)
+    {
+        cpu.W |= FLAG_S;
+    }
 }
 
-u8 do_add_decimal(u8 augend, u8 addend) {
+u8 do_add(u8 pus, u8 scra, u8 idk)
+{
+    u16 ree = pus + scra + idk;
+    if (ree & 0x100)
+    {
+        cpu.W |= FLAG_C;
+    }
+    if ((pus ^ ree) & (scra ^ ree) & 0x80)
+    {
+        cpu.W |= FLAG_O;
+    }
+    return (u8)ree;
+}
+
+u8 do_add_decimal(u8 augend, u8 addend)
+{
     u8 tmp = augend + addend;
     u8 c = 0, ic = 0;
-    if (((augend + addend) & 0xff0) > 0xf0) c = 1;
-    if ((augend & 0x0f) + (addend & 0x0f) > 0x0F) ic = 1;
+    if (((augend + addend) & 0xff0) > 0xf0) { c = 1; }
+    if ((augend & 0x0f) + (addend & 0x0f) > 0x0F) { ic = 1; }
     clr_ozcs();
     do_add(augend, addend, 0);
     set_sz(tmp);
-    if (c == 0 && ic == 0) tmp = ((tmp + 0xa0) & 0xf0) + ((tmp + 0x0a) & 0x0f);
-    if (c == 0 && ic == 1) tmp = ((tmp + 0xa0) & 0xf0) + (tmp & 0x0f);
-    if (c == 1 && ic == 0) tmp = (tmp & 0xf0) + ((tmp + 0x0a) & 0x0f);
+    if (c == 0 && ic == 0) { tmp = ((tmp + 0xa0) & 0xf0) + ((tmp + 0x0a) & 0x0f); }
+    if (c == 0 && ic == 1) { tmp = ((tmp + 0xa0) & 0xf0) + (tmp & 0x0f); }
+    if (c == 1 && ic == 0) { tmp = (tmp & 0xf0) + ((tmp + 0x0a) & 0x0f); }
     return tmp;
 }
 
@@ -37,23 +52,44 @@ u8 isar_addr_inc(void) { u8 a = cpu.ISAR & 0x3F; cpu.ISAR = (cpu.ISAR & 0x38) | 
 u8 isar_addr_dec(void) { u8 a = cpu.ISAR & 0x3F; cpu.ISAR = (cpu.ISAR & 0x38) | ((cpu.ISAR - 1) & 0x07); return a; }
 u8 f8_read_byte(u16 address) { return rom[address % sizeof(rom)]; }
 
-void set_flags_logic(u8 result) {
+void set_flags_logic(u8 result)
+{
     cpu.W &= ~(0x08 | 0x04 | 0x02 | 0x01);
-    if (result == 0) cpu.W |= 0x04;                 // Zero
-    if ((result & 0x80) == 0) cpu.W |= 0x01;         // Sign (inverted)
+    if (result == 0)
+    {
+        cpu.W |= 0x04;
+    }
+    if ((result & 0x80) == 0)
+    {
+        cpu.W |= 0x01;
+    }
 }
 
-// For add/subtract-type ops: all four flags vary. Pass the two 8-bit operands as added (DS uses b=0xFF)
-void set_flags_arith(u8 a, u8 b) {
+void set_flags_arith(u8 a, u8 b)
+{
     u16 result = (u16)a + (u16)b;
     u8 carry7 = (result > 0xFF) ? 1 : 0;
     u8 carry6 = (((a & 0x7F) + (b & 0x7F)) > 0x7F) ? 1 : 0;
     u8 res8 = (u8)result;
     cpu.W &= ~(0x08 | 0x04 | 0x02 | 0x01);
-    if (carry6 ^ carry7) cpu.W |= 0x08;              // Overflow
-    if (res8 == 0) cpu.W |= 0x04;                    // Zero
-    if (carry7) cpu.W |= 0x02;                       // Carry
-    if ((res8 & 0x80) == 0) cpu.W |= 0x01;            // Sign (inverted)
+
+    if (carry6 ^ carry7)
+    {
+        cpu.W |= 0x08;
+    }
+    
+    if (res8 == 0)
+    {
+        cpu.W |= 0x04;
+    }
+    if (carry7)
+    {
+        cpu.W |= 0x02;
+    }
+    if ((res8 & 0x80) == 0)
+    {
+        cpu.W |= 0x01;
+    }
 }
 
 
@@ -61,68 +97,96 @@ void helper_bt(u8 mask) { u8 flags = cpu.W & 0x0F; if (flags & mask) { s8 off = 
 void helper_bf(u8 mask) { u8 flags = cpu.W & 0x0F; if (!(flags & mask)) { s8 off = (s8)f8_read_byte(cpu.PC0+1); cpu.PC0 += 1 + off; } else { cpu.PC0 += 2; } }
 void helper_ds_flags(u8 old_val) { set_flags_arith(old_val, 0xFF); }
 
-
-
-
-u8 bcd_add(u8 a, u8 b) {
+u8 bcd_add(u8 a, u8 b)
+{
     u16 sum = a + b;
-    if ((sum & 0x0F) > 0x09) sum += 0x06;
-    if ((sum & 0xF0) > 0x90) sum += 0x60;
+    if ((sum & 0x0F) > 0x09)
+    {
+        sum += 0x06;
+    }
+
+    if ((sum & 0xF0) > 0x90)
+    {
+        sum += 0x60;
+    }
     return (u8)sum;
+}
+
+
+
+
+u8 read_controller(u32 btns)
+{
+    u8 val = 0xFF;
+    if (btns & PAD_RIGHT) val &= ~0x01;
+    if (btns & PAD_LEFT) val &= ~0x02;
+    if (btns & PAD_DOWN) val &= ~0x04;
+    if (btns & PAD_UP) val &= ~0x08;
+    if (btns & PAD_L1) val &= ~0x10;
+    if (btns & PAD_R1) val &= ~0x20;
+    if (btns & PAD_TRIANGLE) val &= ~0x40;
+    if (btns & PAD_CROSS) val &= ~0x80;
+    return val;
 }
 
 u8 channelf_latch_x = 0;
 u8 channelf_latch_y = 0;
 
+u8 port0_write_latch = 0;
+
 u8 handle_video_port_read(u8 port)
 {
-    u8 val = 0xFF;
     switch (port & 0x07)
     {
-
         case 0:
         {
-            u32 p1_btns = pad_get_buttons(0);
-            if (p1_btns & PAD_UP) { val &= ~0x01; }
-            if (p1_btns & PAD_DOWN) { val &= ~0x02; }
-            if (p1_btns & PAD_LEFT) { val &= ~0x04; }
-            if (p1_btns & PAD_RIGHT) { val &= ~0x08; }
-            if (p1_btns & PAD_CROSS) { val &= ~0x10; }
-            if (p1_btns & PAD_L1) { val &= ~0x40; }
-            if (p1_btns & PAD_R2) { val &= ~0x80; }
+            u8 val = 0xFF;
+            u32 btns = pad_get_buttons(0);
+            if (btns & PAD_SELECT)
+            {
+                if (btns & PAD_START) val &= ~0x01; // T
+                if (btns & PAD_SQUARE) val &= ~0x02; // H
+                if (btns & PAD_CIRCLE) val &= ~0x04; // M
+                if (btns & PAD_TRIANGLE)val &= ~0x08; // S
+            }
             return val;
         }
         case 1:
         {
-            u32 p1_sysbutton = pad_get_buttons(0);
-            if (p1_sysbutton & PAD_SELECT) 
+            return read_controller(pad_get_buttons(1));
+        }
+        case 2:
+        {
+            return 0xFF;//return read_controller(pad_get_buttons(1));
+        }
+        case 3:
+        {
+            return 0x00;
+        }
+        case 4:
+        {
+            if ((port0_write_latch & 0x40) == 0)
             {
-                if (p1_sysbutton & PAD_CROSS)  { val &= ~0x01; } // Console Button 1
-                if (p1_sysbutton & PAD_SQUARE) { val &= ~0x02; } // Console Button 2
-                if (p1_sysbutton & PAD_CIRCLE) { val &= ~0x04; } // Console Button 3
-                if (p1_sysbutton & PAD_TRIANGLE){ val &= ~0x08; } // Console Button 4 (Hold)
-                return val;
+                return read_controller(pad_get_buttons(0));
             }
             else
             {
-                u32 p2_btns = pad_get_buttons(1);
-                if (p2_btns & PAD_UP) { val &= ~0x01; }
-                if (p2_btns & PAD_DOWN) { val &= ~0x02; }
-                if (p2_btns & PAD_LEFT) { val &= ~0x04; }
-                if (p2_btns & PAD_RIGHT) { val &= ~0x08; }
-                if (p2_btns & PAD_CROSS) { val &= ~0x10; }
-                if (p2_btns & PAD_L1) { val &= ~0x40; }
-                if (p2_btns & PAD_R2) { val &= ~0x80; }
-                return val;
+                return (channelf_latch_x ^ 0x7F) & 0x7F;
             }
         }
-        case 2: return 0x01; // vBlanc
-        case 3: return 0x00; //idk but important
-        case 4: return channelf_latch_x ^ 0x7F;
-        case 5: return channelf_latch_y ^ 0x3F;
-        default: return 0;
+        case 5:
+        {
+            return channelf_latch_y ^ 0x3F;
+        }
+        default:
+        {
+            return 0xFF;
+        }
     }
 }
+
+
+
 u32 palette_a[4] =
 {
     GS_SETREG_RGBAQ(0xE0, 0xE0, 0xE0, 128, 0),
@@ -130,17 +194,23 @@ u32 palette_a[4] =
     GS_SETREG_RGBAQ(0x91, 0xFF, 0xA6, 128, 0),
     GS_SETREG_RGBAQ(0xCE, 0xD0, 0xFF, 128, 0),
 };
-// Palette B (row 2): white, red, green, blue
+
 u32 palette_b[4] =
 {
+    GS_SETREG_RGBAQ(0x02, 0xCC, 0x5D, 128, 0),
+    GS_SETREG_RGBAQ(0xFF, 0x31, 0x53, 128, 0),
     GS_SETREG_RGBAQ(0x4B, 0x3F, 0xF3, 128, 0),
-    GS_SETREG_RGBAQ(0xFF, 0x31, 0x53, 128, 0), // index 1 -> red/pink (aliens) — confirmed
-    GS_SETREG_RGBAQ(0x02, 0xCC, 0x5D, 128, 0), // index 2 -> bright green (checker) — confirmed, same as your chart's green
-    GS_SETREG_RGBAQ(0xFC, 0xFC, 0xFC, 128, 0), // index 3 -> should be grey/white background — confirmed slot, using your chart's white/light value
+    GS_SETREG_RGBAQ(0xFC, 0xFC, 0xFC, 128, 0),
 };
+
 u8 current_palette = 1;
+
 void handle_video_port_writes(u8 port, u8 value)
 {
+    if (port == 0)
+    {
+        port0_write_latch = value;
+    }
     if (port == 4)
     {
         channelf_latch_x = (value ^ 0x7F) & 0x7F;
@@ -148,20 +218,30 @@ void handle_video_port_writes(u8 port, u8 value)
     else if (port == 5)
     {
         channelf_latch_y = value ^ 0x3F;
-        printf("Y-LATCH write value=0x%02X -> latch_y=%d\n", value, channelf_latch_y);
+        sound_update();
+        sound_write(value);
+        //u8 sound_type = value & 0xC0;
+        
+        //handle_channel_f_sound(sound_type);
     }
     else if (port == 1)
     {
         u8 color_index = (value >> 6) & 0x03;
         u8 x = channelf_latch_x;
         u8 y = channelf_latch_y;
-        if (x >= 120 && x < 128) {
-            if (x == 125) {
-                current_palette = (color_index != 0) ? 1 : 0;   // or whatever bit/condition we determine from real data
+        //printf("PLOT x=%d y=%d color=%d\n", x, y, color_index);fflush(stdout);
+        if (x >= 120 && x < 128)
+        {
+            if (x == 125)
+            {
+                current_palette = (color_index != 0) ? 1 : 0; //the f*ck i know, seems like it works, so...
             }
-        } else if (x < 128 && y < 64) {
+        }
+        else if (x < 128 && y < 64)
+        {
             u32 ps2_color = (current_palette == 0) ? palette_a[color_index] : palette_b[color_index];
             channelf_vram[(y * 128) + x] = ps2_color;
+            
         }
     }
 }
@@ -185,19 +265,41 @@ void LR_IS_A(void) { cpu.ISAR = cpu.A & 0x3F; cpu.PC0 += 1; }
 void PK(void) { cpu.PC1 = cpu.PC0 + 1; cpu.PC0 = (cpu.scratchpad[12] << 8) | cpu.scratchpad[13]; }
 void LR_P0_Q(void) { cpu.PC0 = (cpu.scratchpad[14] << 8) | cpu.scratchpad[15]; }
 void LR_Q_DC(void) { cpu.scratchpad[14] = (cpu.DC0 >> 8) & 0xFF; cpu.scratchpad[15] = cpu.DC0 & 0xFF; cpu.PC0 += 1; }
-void LR_DC_Q(void) { cpu.DC0 = (cpu.scratchpad[14] << 8) | cpu.scratchpad[15]; cpu.PC0 += 1; }
+
 
 //10-1F
-void LR_DC_H(void) { cpu.DC0 = (cpu.scratchpad[10] << 8) | cpu.scratchpad[11]; cpu.PC0 += 1; }
+void LR_DC_Q(void)
+{
+    cpu.DC0 = (cpu.scratchpad[14] << 8) | cpu.scratchpad[15];
+    //printf("DC0-SET via LR_DC_Q at PC=0x%04X -> DC0=0x%04X\n", cpu.PC0, cpu.DC0);
+    cpu.PC0 += 1;
+}
+void LR_DC_H(void)
+{
+    cpu.DC0 = (cpu.scratchpad[10] << 8) | cpu.scratchpad[11];
+    //printf("DC0-SET via LR_DC_H at PC=0x%04X -> DC0=0x%04X\n", cpu.PC0, cpu.DC0);
+    cpu.PC0 += 1;
+}
+
 void LR_H_DC(void) { cpu.scratchpad[10] = (cpu.DC0 >> 8) & 0xFF; cpu.scratchpad[11] = cpu.DC0 & 0xFF; cpu.PC0 += 1; }
 void SR_1(void) { cpu.A >>= 1; clr_ozcs(); set_sz(cpu.A); cpu.PC0 += 1; }
 void SL_1(void) { cpu.A <<= 1; clr_ozcs(); set_sz(cpu.A); cpu.PC0 += 1; }
 void SR_4(void) { cpu.A >>= 4; clr_ozcs(); set_sz(cpu.A); cpu.PC0 += 1; }
 void SL_4(void) { cpu.A <<= 4; clr_ozcs(); set_sz(cpu.A); cpu.PC0 += 1; }
-void LM(void) { cpu.A = f8_read_byte(cpu.DC0); cpu.DC0++; cpu.PC0 += 1; }
+void LM(void)
+{
+    u16 call_site = cpu.PC0;
+    cpu.A = f8_read_byte(cpu.DC0);
+    cpu.DC0++;
+    cpu.PC0 += 1;
+    //if (call_site == 0x1616)
+    //{
+        //printf("ROW-FETCH y=%d DC0=0x%04X byte=0x%02X\n", channelf_latch_y, cpu.DC0 - 1, cpu.A);
+    //}
+}
 void ST(void) { rom[cpu.DC0 % sizeof(rom)] = cpu.A; cpu.DC0++; cpu.PC0 += 1; }
-void COM(void)  { cpu.A = ~cpu.A; clr_ozcs(); set_sz(cpu.A); cpu.PC0 += 1; }
-void LNK(void)  { u8 c = (cpu.W & FLAG_C) ? 1 : 0; clr_ozcs(); cpu.A = do_add(cpu.A, 0, c); set_sz(cpu.A); cpu.PC0 += 1; }
+void COM(void) { cpu.A = ~cpu.A; clr_ozcs(); set_sz(cpu.A); cpu.PC0 += 1; }
+void LNK(void) { u8 c = (cpu.W & FLAG_C) ? 1 : 0; clr_ozcs(); cpu.A = do_add(cpu.A, 0, c); set_sz(cpu.A); cpu.PC0 += 1; }
 void DI_(void) { cpu.W &= ~(1 << 4); cpu.PC0 += 1; }
 void EI_(void) { cpu.W |= (1 << 4);  cpu.PC0 += 1; }
 void POP(void) { cpu.PC0 = cpu.PC1; }
@@ -207,38 +309,49 @@ void INC(void)  { clr_ozcs(); cpu.A = do_add(cpu.A, 1, 0); set_sz(cpu.A); cpu.PC
 
 //20-2F
 void LI(void) { cpu.A = f8_read_byte(cpu.PC0+1); cpu.PC0 += 2; }
-void NI(void)   { clr_ozcs(); cpu.A &= f8_read_byte(cpu.PC0+1); set_sz(cpu.A); cpu.PC0 += 2; }
-void OI(void)  { u8 imm=f8_read_byte(cpu.PC0+1); clr_ozcs(); cpu.A|=imm; set_sz(cpu.A); cpu.PC0+=2; }
-void XI(void)  { u8 imm=f8_read_byte(cpu.PC0+1); clr_ozcs(); cpu.A^=imm; set_sz(cpu.A); cpu.PC0+=2; }
-void AI(void)  { u8 imm=f8_read_byte(cpu.PC0+1); clr_ozcs(); cpu.A=do_add(cpu.A,imm,0); set_sz(cpu.A); cpu.PC0+=2; }
+void NI(void) { clr_ozcs(); cpu.A &= f8_read_byte(cpu.PC0+1); set_sz(cpu.A); cpu.PC0 += 2; }
+void OI(void) { u8 imm=f8_read_byte(cpu.PC0+1); clr_ozcs(); cpu.A|=imm; set_sz(cpu.A); cpu.PC0+=2; }
+void XI(void) { u8 imm=f8_read_byte(cpu.PC0+1); clr_ozcs(); cpu.A^=imm; set_sz(cpu.A); cpu.PC0+=2; }
+void AI(void) { u8 imm=f8_read_byte(cpu.PC0+1); clr_ozcs(); cpu.A=do_add(cpu.A,imm,0); set_sz(cpu.A); cpu.PC0+=2; }
 void CI(void) { u8 imm = f8_read_byte(cpu.PC0+1); clr_ozcs(); set_sz(do_add((u8)~cpu.A, imm, 1)); cpu.PC0 += 2; }
 void IN(void) { u8 port = f8_read_byte(cpu.PC0+1); cpu.A = handle_video_port_read(port); cpu.PC0 += 2; }
 void OUT(void) { u8 port = f8_read_byte(cpu.PC0+1); handle_video_port_writes(port, cpu.A); cpu.PC0 += 2; }
-void PI(void)  { u8 hi = f8_read_byte(cpu.PC0+1), lo = f8_read_byte(cpu.PC0+2); cpu.PC1 = cpu.PC0 + 3; cpu.PC0 = (hi << 8) | lo; }
+void PI(void) { u8 hi = f8_read_byte(cpu.PC0+1), lo = f8_read_byte(cpu.PC0+2); cpu.PC1 = cpu.PC0 + 3; cpu.PC0 = (hi << 8) | lo; }
 void JMP(void) { u8 hi = f8_read_byte(cpu.PC0+1), lo = f8_read_byte(cpu.PC0+2); cpu.PC0 = (hi << 8) | lo; }
-void DCI(void) { u8 hi = f8_read_byte(cpu.PC0+1), lo = f8_read_byte(cpu.PC0+2); cpu.DC0 = (hi << 8) | lo; cpu.PC0 += 3; }
+void DCI(void)
+{
+    u8 hi = f8_read_byte(cpu.PC0+1), lo = f8_read_byte(cpu.PC0+2);
+    cpu.DC0 = (hi << 8) | lo;
+    if (cpu.PC0 == 0x1665)
+    {
+        printf("PRE-OFFSET A=0x%02X W=0x%02X\n", cpu.A, cpu.W);
+        fflush(stdout);
+        //trace_dump();
+    }
+    cpu.PC0 += 3;
+}
 void NOP(void) { cpu.PC0 += 1; }
-void XDC(void) { /* swap DC0/DC1 if i add them */ cpu.PC0 += 1; }
+void XDC(void) { u16 temp; temp=cpu.DC0; cpu.DC0 = cpu.DC1; cpu.DC1=temp; cpu.PC0 += 1; }
 void unassigned_0x2D(void) { cpu.PC0 += 1; }
 void unassigned_0x2E(void) { cpu.PC0 += 1; }
 void unassigned_0x2F(void) { cpu.PC0 += 1; }
 
 //30-3F
-void DS_R0(void) { cpu.scratchpad[0]--; helper_ds_flags(cpu.scratchpad[0]); cpu.PC0 += 1; }
-void DS_R1(void) { cpu.scratchpad[1]--; helper_ds_flags(cpu.scratchpad[1]); cpu.PC0 += 1; }
-void DS_R2(void) { cpu.scratchpad[2]--; helper_ds_flags(cpu.scratchpad[2]); cpu.PC0 += 1; }
-void DS_R3(void) { cpu.scratchpad[3]--; helper_ds_flags(cpu.scratchpad[3]); cpu.PC0 += 1; }
-void DS_R4(void) { cpu.scratchpad[4]--; helper_ds_flags(cpu.scratchpad[4]); cpu.PC0 += 1; }
-void DS_R5(void) { cpu.scratchpad[5]--; helper_ds_flags(cpu.scratchpad[5]); cpu.PC0 += 1; }
-void DS_R6(void) { cpu.scratchpad[6]--; helper_ds_flags(cpu.scratchpad[6]); cpu.PC0 += 1; }
-void DS_R7(void) { cpu.scratchpad[7]--; helper_ds_flags(cpu.scratchpad[7]); cpu.PC0 += 1; }
-void DS_R8(void) { cpu.scratchpad[8]--; helper_ds_flags(cpu.scratchpad[8]); cpu.PC0 += 1; }
-void DS_R9(void) { cpu.scratchpad[9]--; helper_ds_flags(cpu.scratchpad[9]); cpu.PC0 += 1; }
-void DS_R10(void) { cpu.scratchpad[10]--; helper_ds_flags(cpu.scratchpad[10]); cpu.PC0 += 1; }
-void DS_R11(void) { cpu.scratchpad[11]--; helper_ds_flags(cpu.scratchpad[11]); cpu.PC0 += 1; }
-void DS_S(void) { u8 r = isar_addr_direct(); cpu.scratchpad[r]--; helper_ds_flags(cpu.scratchpad[r]); cpu.PC0 += 1; }
-void DS_I(void) { u8 r = isar_addr_inc(); cpu.scratchpad[r]--; helper_ds_flags(cpu.scratchpad[r]); cpu.PC0 += 1; }
-void DS_D(void) { u8 r = isar_addr_dec(); cpu.scratchpad[r]--; helper_ds_flags(cpu.scratchpad[r]); cpu.PC0 += 1; }
+void DS_R0(void) { u8 old = cpu.scratchpad[0]; cpu.scratchpad[0]--; helper_ds_flags(old); cpu.PC0 += 1; }
+void DS_R1(void) { u8 old = cpu.scratchpad[1]; cpu.scratchpad[1]--; helper_ds_flags(old); cpu.PC0 += 1; }
+void DS_R2(void) { u8 old = cpu.scratchpad[2]; cpu.scratchpad[2]--; helper_ds_flags(old); cpu.PC0 += 1; }
+void DS_R3(void) { u8 old = cpu.scratchpad[3]; cpu.scratchpad[3]--; helper_ds_flags(old); cpu.PC0 += 1; }
+void DS_R4(void) { u8 old = cpu.scratchpad[4]; cpu.scratchpad[4]--; helper_ds_flags(old); cpu.PC0 += 1; }
+void DS_R5(void) { u8 old = cpu.scratchpad[5]; cpu.scratchpad[5]--; helper_ds_flags(old); cpu.PC0 += 1; }
+void DS_R6(void) { u8 old = cpu.scratchpad[6]; cpu.scratchpad[6]--; helper_ds_flags(old); cpu.PC0 += 1; }
+void DS_R7(void) { u8 old = cpu.scratchpad[7]; cpu.scratchpad[7]--; helper_ds_flags(old); cpu.PC0 += 1; }
+void DS_R8(void) { u8 old = cpu.scratchpad[8]; cpu.scratchpad[8]--; helper_ds_flags(old); cpu.PC0 += 1; }
+void DS_R9(void) { u8 old = cpu.scratchpad[9]; cpu.scratchpad[9]--; helper_ds_flags(old); cpu.PC0 += 1; }
+void DS_R10(void) { u8 old = cpu.scratchpad[10]; cpu.scratchpad[10]--; helper_ds_flags(old); cpu.PC0 += 1; }
+void DS_R11(void) { u8 old = cpu.scratchpad[11]; cpu.scratchpad[11]--; helper_ds_flags(old); cpu.PC0 += 1; }
+void DS_S(void) { u8 r = isar_addr_direct(); u8 old = cpu.scratchpad[r]; cpu.scratchpad[r]--; helper_ds_flags(old); cpu.PC0 += 1; }
+void DS_I(void) { u8 r = isar_addr_inc(); u8 old = cpu.scratchpad[r]; cpu.scratchpad[r]--; helper_ds_flags(old); cpu.PC0 += 1; }
+void DS_D(void) { u8 r = isar_addr_dec(); u8 old = cpu.scratchpad[r]; cpu.scratchpad[r]--; helper_ds_flags(old); cpu.PC0 += 1; }
 void unassigned_0x3F(void) { cpu.PC0 += 1; }
 
 //40-4F
@@ -246,7 +359,7 @@ void LR_A_R0(void) { cpu.A = cpu.scratchpad[0]; cpu.PC0 += 1; }
 void LR_A_R1(void) { cpu.A = cpu.scratchpad[1]; cpu.PC0 += 1; }
 void LR_A_R2(void) { cpu.A = cpu.scratchpad[2]; cpu.PC0 += 1; }
 void LR_A_R3(void) { cpu.A = cpu.scratchpad[3]; cpu.PC0 += 1; }
-void LR_A_R4(void) { cpu.A = cpu.scratchpad[4]; cpu.PC0 += 1; }
+void LR_A_R4(void) { cpu.A = cpu.scratchpad[4]; /*if (cpu.PC0 == 0x1622) printf("FG-COLOR-REG scratchpad[4]=0x%02X\n", cpu.A);*/ cpu.PC0 += 1; }
 void LR_A_R5(void) { cpu.A = cpu.scratchpad[5]; cpu.PC0 += 1; }
 void LR_A_R6(void) { cpu.A = cpu.scratchpad[6]; cpu.PC0 += 1; }
 void LR_A_R7(void) { cpu.A = cpu.scratchpad[7]; cpu.PC0 += 1; }
@@ -322,13 +435,19 @@ void BZ(void) { helper_bt(0x4); }
 void BT_5(void) { helper_bt(0x5); }
 void BT_6(void) { helper_bt(0x6); }
 void BT_7(void) { helper_bt(0x7); }
-void AM(void)  { u8 m=f8_read_byte(cpu.DC0); clr_ozcs(); cpu.A=do_add(cpu.A,m,0); set_sz(cpu.A); cpu.DC0++; cpu.PC0+=1; }
-void AMD(void) { cpu.A = do_add_decimal(cpu.A, f8_read_byte(cpu.DC0)); cpu.DC0++; cpu.PC0 += 1; } //advanced microdevices used to help hthe IRS spy on us using the TV and for mole pople to plan their attack....
-void NM(void)  { u8 m=f8_read_byte(cpu.DC0); clr_ozcs(); cpu.A&=m; set_sz(cpu.A); cpu.DC0++; cpu.PC0+=1; }
-void OM(void)  { u8 m=f8_read_byte(cpu.DC0); clr_ozcs(); cpu.A|=m; set_sz(cpu.A); cpu.DC0++; cpu.PC0+=1; }
-void XM(void)  { u8 m=f8_read_byte(cpu.DC0); clr_ozcs(); cpu.A^=m; set_sz(cpu.A); cpu.DC0++; cpu.PC0+=1; }
+void AM(void) { u8 m=f8_read_byte(cpu.DC0); clr_ozcs(); cpu.A=do_add(cpu.A,m,0); set_sz(cpu.A); cpu.DC0++; cpu.PC0+=1; }
+void AMD(void) { cpu.A = do_add_decimal(cpu.A, f8_read_byte(cpu.DC0)); cpu.DC0++; cpu.PC0 += 1; } //advanced microdevices used to help hthe IRS spy on us using the TV and for mole people to plan their attack....
+void NM(void) { u8 m=f8_read_byte(cpu.DC0); clr_ozcs(); cpu.A&=m; set_sz(cpu.A); cpu.DC0++; cpu.PC0+=1; }
+void OM(void) { u8 m=f8_read_byte(cpu.DC0); clr_ozcs(); cpu.A|=m; set_sz(cpu.A); cpu.DC0++; cpu.PC0+=1; }
+void XM(void) { u8 m=f8_read_byte(cpu.DC0); clr_ozcs(); cpu.A^=m; set_sz(cpu.A); cpu.DC0++; cpu.PC0+=1; }
 void CM(void) { u8 m = f8_read_byte(cpu.DC0); clr_ozcs(); set_sz(do_add((u8)~cpu.A, m, 1)); cpu.DC0++; cpu.PC0 += 1; }
-void ADC_(void) { cpu.DC0 += (s8)cpu.A; cpu.PC0 += 1; }
+void ADC_(void)
+{
+    cpu.DC0 += (s8)cpu.A;
+    printf("DC0-SET via ADC at PC=0x%04X A=0x%02X -> DC0=0x%04X\n", cpu.PC0, cpu.A, cpu.DC0);
+    cpu.PC0 += 1;
+}
+
 void BR7(void) { if ((cpu.ISAR & 0x07) != 7) { s8 off=(s8)f8_read_byte(cpu.PC0+1); cpu.PC0 += 1+off; } else cpu.PC0 += 2; }
 
 //90-9F
